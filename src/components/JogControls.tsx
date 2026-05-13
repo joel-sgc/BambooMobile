@@ -19,16 +19,16 @@ function wedgePath(s: number, e: number, r1: number, r2: number): string {
 // ── Wheel config ──────────────────────────────────────────────────────────────
 
 const WD = [
-  { key: 'yp', axis: 'Y' as const, sign:  1, label:  'Y', mid: -90 },
-  { key: 'xp', axis: 'X' as const, sign:  1, label:  'X', mid:   0 },
-  { key: 'yn', axis: 'Y' as const, sign: -1, label: '-Y', mid:  90 },
+  { key: 'yp', axis: 'Y' as const, sign: 1, label: 'Y', mid: -90 },
+  { key: 'xp', axis: 'X' as const, sign: 1, label: 'X', mid: 0 },
+  { key: 'yn', axis: 'Y' as const, sign: -1, label: '-Y', mid: 90 },
   { key: 'xn', axis: 'X' as const, sign: -1, label: '-X', mid: 180 },
 ] as const;
 
 const GAP = 5;
-const IR  = 0.27;
-const SR  = 0.56;
-const OR  = 0.94;
+const IR = 0.27;
+const SR = 0.56;
+const OR = 0.94;
 
 // ── Sub-components (only used by JogControls) ─────────────────────────────────
 
@@ -81,16 +81,23 @@ function XYWheel({
               style={{ cursor: 'pointer' }}
             />
             <text
-              x={lx} y={ly}
-              textAnchor='middle' dominantBaseline='middle'
-              fontSize={0.17} fontWeight='600' fill='#d4d4d8'
+              x={lx}
+              y={ly}
+              textAnchor='middle'
+              dominantBaseline='middle'
+              fontSize={0.17}
+              fontWeight='600'
+              fill='#d4d4d8'
               style={{ pointerEvents: 'none' }}>
               {label}
             </text>
             <text
-              x={sx} y={sy}
-              textAnchor='middle' dominantBaseline='middle'
-              fontSize={0.11} fill='#71717a'
+              x={sx}
+              y={sy}
+              textAnchor='middle'
+              dominantBaseline='middle'
+              fontSize={0.11}
+              fill='#71717a'
               style={{ pointerEvents: 'none' }}>
               {sign > 0 ? '+1' : '−1'}
             </text>
@@ -99,7 +106,9 @@ function XYWheel({
       })}
 
       <circle
-        cx={0} cy={0} r={IR - 0.01}
+        cx={0}
+        cy={0}
+        r={IR - 0.01}
         fill={flash === 'home' ? '#0f766e' : '#27272a'}
         stroke='#52525b'
         strokeWidth={0.025}
@@ -107,8 +116,10 @@ function XYWheel({
         style={{ cursor: 'pointer' }}
       />
       <text
-        x={0} y={0.02}
-        textAnchor='middle' dominantBaseline='middle'
+        x={0}
+        y={0.02}
+        textAnchor='middle'
+        dominantBaseline='middle'
         fontSize={0.22}
         fill={flash === 'home' ? '#5eead4' : '#14b8a6'}
         style={{ pointerEvents: 'none' }}>
@@ -125,12 +136,24 @@ function ExtruderControl({ onMove }: { onMove: (mm: number) => void }) {
   return (
     <div className='grid grid-rows-[auto_auto_1fr_auto_auto] items-center justify-between h-full gap-2'>
       <button className={btn} onClick={() => onMove(10)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M5 11l7-7 7 7M5 19l7-7 7 7' />
         </svg>
       </button>
       <button className={btn} onClick={() => onMove(1)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M5 15l7-7 7 7' />
         </svg>
       </button>
@@ -144,12 +167,24 @@ function ExtruderControl({ onMove }: { onMove: (mm: number) => void }) {
       </div>
 
       <button className={btn} onClick={() => onMove(-1)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M19 9l-7 7-7-7' />
         </svg>
       </button>
       <button className={btn} onClick={() => onMove(-10)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M19 5l-7 7-7-7M19 13l-7 7-7-7' />
         </svg>
       </button>
@@ -163,26 +198,50 @@ function BedControl({ onMove }: { onMove: (mm: number) => void }) {
 
   return (
     <div className='grid grid-rows-[auto_auto_1fr_auto_auto] items-center justify-between gap-2 w-fit h-full'>
-      <button className={btn} onClick={() => onMove(10)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+      <button className={btn} onClick={() => onMove(-10)}>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M5 11l7-7 7 7M5 19l7-7 7 7' />
         </svg>
       </button>
-      <button className={btn} onClick={() => onMove(1)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+      <button className={btn} onClick={() => onMove(-1)}>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M5 15l7-7 7 7' />
         </svg>
       </button>
       <span className='text-zinc-400 text-xs font-medium text-center shrink-0 px-1 my-auto'>
         Bed
       </span>
-      <button className={btn} onClick={() => onMove(-1)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+      <button className={btn} onClick={() => onMove(1)}>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M19 9l-7 7-7-7' />
         </svg>
       </button>
-      <button className={btn} onClick={() => onMove(-10)}>
-        <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2.5} strokeLinecap='round'>
+      <button className={btn} onClick={() => onMove(10)}>
+        <svg
+          className='w-4 h-4'
+          viewBox='0 0 24 24'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth={2.5}
+          strokeLinecap='round'>
           <path d='M19 5l-7 7-7-7M19 13l-7 7-7-7' />
         </svg>
       </button>
@@ -192,7 +251,11 @@ function BedControl({ onMove }: { onMove: (mm: number) => void }) {
 
 // ── Exported component ────────────────────────────────────────────────────────
 
-export default function JogControls({ onGcode }: { onGcode: (g: string) => void }) {
+export default function JogControls({
+  onGcode,
+}: {
+  onGcode: (g: string) => void;
+}) {
   function move(axis: 'X' | 'Y' | 'Z' | 'E', feedrate: number, mm: number) {
     onGcode(`G91\nG1 ${axis}${mm} F${feedrate}\nG90`);
   }
@@ -209,7 +272,9 @@ export default function JogControls({ onGcode }: { onGcode: (g: string) => void 
         <ExtruderControl onMove={(mm) => move('E', 200, mm)} />
         <BedControl onMove={(mm) => move('Z', 300, mm)} />
       </div>
-      <p className='text-zinc-600 text-[10px]'>⌂ homes all axes — do this before moving</p>
+      <p className='text-zinc-600 text-[10px]'>
+        ⌂ homes all axes — do this before moving
+      </p>
     </div>
   );
 }
