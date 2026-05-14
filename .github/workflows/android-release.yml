@@ -1,8 +1,9 @@
 name: Android APK
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
