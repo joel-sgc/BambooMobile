@@ -12,7 +12,7 @@ import ExternalSpool from './ExternalSpool';
 import SpeedSlider from './SpeedSlider';
 import JogControls from './JogControls';
 
-export default function Dashboard({ onSettings }: { onSettings: () => void }) {
+export default function Dashboard({ onMenuOpen }: { onMenuOpen: () => void }) {
   const [status, setStatus] = useState<PrinterStatus | null>(null);
   const [frameData, setFrameData] = useState<string | null>(null);
   const [lightOn, setLightOn] = useState(false);
@@ -29,7 +29,8 @@ export default function Dashboard({ onSettings }: { onSettings: () => void }) {
       setStatus(e.payload);
       const now = Date.now();
       if (now > lightPendingUntil.current) setLightOn(e.payload.chamber_light);
-      if (now > speedPendingUntil.current) setSpeedLevel(e.payload.spd_lvl || 2);
+      if (now > speedPendingUntil.current)
+        setSpeedLevel(e.payload.spd_lvl || 2);
     });
 
     const unlistenCamera = listen<string>('camera-frame', (e) =>
@@ -68,30 +69,50 @@ export default function Dashboard({ onSettings }: { onSettings: () => void }) {
     await invoke('set_print_speed', { level }).catch(console.error);
   }
 
-  const hasFilament = status && (status.ams.length > 0 || status.vt_tray != null);
+  const hasFilament =
+    status && (status.ams.length > 0 || status.vt_tray != null);
 
   return (
     <div className='min-h-screen bg-zinc-950 text-white flex flex-col'>
       <div
-        className='flex items-center justify-between px-4 pb-3 bg-zinc-900 border-b border-zinc-800 shrink-0'
+        className='sticky top-0 z-10 flex items-center justify-between px-4 pb-3 bg-zinc-900 border-b border-zinc-800 shrink-0'
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
-        <h1 className='font-semibold text-lg'>BambuMobile</h1>
         <button
-          onClick={onSettings}
-          className='text-zinc-400 hover:text-white transition-colors text-xl leading-none'
-          aria-label='Settings'>
-          ⚙
+          onClick={onMenuOpen}
+          className='text-zinc-400 hover:text-white transition-colors'
+          aria-label='Menu'>
+          <svg
+            className='w-6 h-6'
+            fill='none'
+            viewBox='0 0 24 24'
+            stroke='currentColor'
+            strokeWidth={2}>
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              d='M4 6h16M4 12h16M4 18h16'
+            />
+          </svg>
         </button>
+        <h1 className='font-semibold text-lg'>BambooMobile</h1>
       </div>
 
       <div className='flex flex-col gap-3 p-4 overflow-y-auto pb-8'>
         <div className='rounded-xl overflow-hidden bg-zinc-900 aspect-video flex items-center justify-center shrink-0'>
           {frameData ?
-            <img src={frameData} className='w-full h-full object-cover' alt='Live camera' />
+            <img
+              src={frameData}
+              className='w-full h-full object-cover'
+              alt='Live camera'
+            />
           : <div className='flex flex-col items-center gap-2 text-center px-6'>
               <span className='text-3xl'>📷</span>
-              <p className='text-zinc-400 text-sm font-medium'>Connecting to camera…</p>
-              <p className='text-zinc-600 text-xs'>Waiting for stream on port 6000</p>
+              <p className='text-zinc-400 text-sm font-medium'>
+                Connecting to camera…
+              </p>
+              <p className='text-zinc-600 text-xs'>
+                Waiting for stream on port 6000
+              </p>
             </div>
           }
         </div>
@@ -101,8 +122,16 @@ export default function Dashboard({ onSettings }: { onSettings: () => void }) {
         {status && (
           <Section title='Temperatures'>
             <div className='grid grid-cols-3 gap-3'>
-              <TempGauge label='Nozzle' actual={status.nozzle_temp} target={status.nozzle_target} />
-              <TempGauge label='Bed' actual={status.bed_temp} target={status.bed_target} />
+              <TempGauge
+                label='Nozzle'
+                actual={status.nozzle_temp}
+                target={status.nozzle_target}
+              />
+              <TempGauge
+                label='Bed'
+                actual={status.bed_temp}
+                target={status.bed_target}
+              />
               <LampButton on={lightOn} onToggle={toggleLight} />
             </div>
           </Section>
@@ -112,7 +141,10 @@ export default function Dashboard({ onSettings }: { onSettings: () => void }) {
           <Section title='Filament'>
             <AmsView ams={status!.ams} />
             {status!.vt_tray && (
-              <ExternalSpool tray={status!.vt_tray} divided={status!.ams.length > 0} />
+              <ExternalSpool
+                tray={status!.vt_tray}
+                divided={status!.ams.length > 0}
+              />
             )}
           </Section>
         )}
@@ -130,7 +162,9 @@ export default function Dashboard({ onSettings }: { onSettings: () => void }) {
         )}
 
         {!status && (
-          <p className='text-zinc-500 text-center py-8'>Waiting for printer data…</p>
+          <p className='text-zinc-500 text-center py-8'>
+            Waiting for printer data…
+          </p>
         )}
       </div>
     </div>

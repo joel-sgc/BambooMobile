@@ -5,10 +5,13 @@ import { load } from '@tauri-apps/plugin-store';
 import ConnectingScreen from './components/ConnectingScreen';
 import SettingsPanel from './components/SettingsPanel';
 import Dashboard from './components/Dashboard';
+import FileManager from './components/FileManager';
+import TimelapseBrowser from './components/TimelapseBrowser';
+import Sidebar, { type Page } from './components/Sidebar';
 
-type Phase = 'connecting' | 'connected' | 'error' | 'settings';
+type Phase = 'connecting' | 'connected' | 'error';
 
-const STORE_FILE = 'bambu-settings.json';
+const STORE_FILE = 'bamboo-settings.json';
 
 export default function App() {
   const [ip, setIp] = useState('');
@@ -16,6 +19,8 @@ export default function App() {
   const [serial, setSerial] = useState('');
   const [phase, setPhase] = useState<Phase>('connecting');
   const [error, setError] = useState('');
+  const [page, setPage] = useState<Page>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   async function connect(
     targetIp = ip,
@@ -37,6 +42,7 @@ export default function App() {
       await store.set('bambu_serial', targetSerial);
       await store.save();
       setPhase('connected');
+      setPage('dashboard');
     } catch (err) {
       if (String(err) === 'Already connected') {
         setPhase('connected');
@@ -70,9 +76,15 @@ export default function App() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function navigate(p: Page) {
+    setPage(p);
+    setSidebarOpen(false);
+  }
+
   if (phase === 'connecting') return <ConnectingScreen ip={ip} />;
 
-  if (phase === 'error' || phase === 'settings') {
+  // First-time setup / bad credentials — full screen, no back button
+  if (phase === 'error') {
     return (
       <SettingsPanel
         ip={ip}
@@ -83,10 +95,45 @@ export default function App() {
         setSerial={setSerial}
         onConnect={() => connect(ip, accessCode, serial)}
         error={error}
-        onBack={phase === 'settings' ? () => setPhase('connected') : undefined}
       />
     );
   }
 
-  return <Dashboard onSettings={() => setPhase('settings')} />;
+  // Connected — page routing with sidebar overlay
+  return (
+    <>
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        page={page}
+        onNavigate={navigate}
+      />
+
+      {page === 'dashboard' && (
+        <Dashboard onMenuOpen={() => setSidebarOpen(true)} />
+      )}
+
+      {page === 'files' && (
+        <FileManager onMenuOpen={() => setSidebarOpen(true)} />
+      )}
+
+      {page === 'timelapses' && (
+        <TimelapseBrowser onMenuOpen={() => setSidebarOpen(true)} />
+      )}
+
+      {page === 'printer-settings' && (
+        <SettingsPanel
+          ip={ip}
+          setIp={setIp}
+          accessCode={accessCode}
+          setAccessCode={setAccessCode}
+          serial={serial}
+          setSerial={setSerial}
+          onConnect={() => connect(ip, accessCode, serial)}
+          error={error}
+          onBack={() => navigate('dashboard')}
+        />
+      )}
+    </>
+  );
 }

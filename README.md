@@ -1,4 +1,4 @@
-# BambuMobile
+# BambooMobile
 
 A mobile-first companion app for Bambu Lab printers that works entirely over your local network! **no Bambu cloud, no account required.**
 
@@ -20,7 +20,7 @@ Bambu Lab makes excellent printers. They also make it increasingly difficult to 
 
 This is a right to repair problem. When you buy a $700 printer, you should be able to operate it without a third party's servers being in the way. The printer is on your local network. The MQTT broker is on the printer. The camera stream is on the printer. None of this requires the internet, but Bambu's official apps route through their cloud anyway.
 
-BambuMobile connects directly to your printer over LAN using the same open protocols that tools like [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer) and [LanBu](https://github.com/nicholasgasior/lanbu) use. Everything stays on your network. Your printer data stays yours.
+BambooMobile connects directly to your printer over LAN using the same open protocols that tools like [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer) and [LanBu](https://github.com/nicholasgasior/lanbu) use. Everything stays on your network. Your printer data stays yours.
 
 As manufacturers increasingly lock down hardware through software and cloud dependencies, community-built alternatives become more important, not just as conveniences, but as a matter of ownership. You paid for the hardware. You should be able to use it on your own terms, indefinitely, regardless of what happens to any company's servers or business model.
 
