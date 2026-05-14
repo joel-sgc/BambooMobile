@@ -14,6 +14,14 @@ The app works on my P1S, if someone else can test it on their printer that'd be 
 
 ---
 
+## Screenshots
+
+| Home | File Manager | Timelapses |
+|:----:|:------------:|:----------:|
+| <img src="assets/Home.png" width="220"/> | <img src="assets/File%20Manager.png" width="220"/> | <img src="assets/Timelapse.png" width="220"/> |
+
+---
+
 ## Why This Exists (The Right to Repair Angle)
 
 Bambu Lab makes excellent printers. They also make it increasingly difficult to use those printers without going through their cloud infrastructure. The official app requires a Bambu account. Their cloud goes down sometimes. Their API terms can change. And if you're in a region with poor connectivity, or you simply don't want your print data phoning home, you're stuck with whatever the official tooling allows.
