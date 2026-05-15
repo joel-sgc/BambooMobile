@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import PullToRefresh from 'react-simple-pull-to-refresh';
 
 interface FileEntry {
   name: string;
@@ -317,7 +318,7 @@ export default function TimelapseBrowser({
         </div>
       )}
 
-      <div className='flex-1 overflow-y-auto'>
+      <PullToRefresh onRefresh={fetchFiles} className='flex-1 overflow-y-auto'>
         {loading && (
           <div className='flex justify-center py-16'>
             <div className='w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin' />
@@ -431,7 +432,7 @@ export default function TimelapseBrowser({
             })}
           </div>
         )}
-      </div>
+      </PullToRefresh>
 
       {/* Preview modal */}
       {preview && (

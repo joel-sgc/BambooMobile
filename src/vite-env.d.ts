@@ -1,22 +1,5 @@
 /// <reference types="vite/client" />
 
-// CSS Anchor Positioning + Popover API — not yet in standard TS lib types
-declare module 'react' {
-  interface CSSProperties {
-    anchorName?: string;
-    positionAnchor?: string;
-  }
-  interface HTMLAttributes<T> {
-    popover?: 'auto' | 'manual';
-    popovertarget?: string;
-    popovertargetaction?: 'toggle' | 'show' | 'hide';
-  }
-  interface ButtonHTMLAttributes<T> {
-    popovertarget?: string;
-    popovertargetaction?: 'toggle' | 'show' | 'hide';
-  }
-}
-
 export interface AmsTray {
   id: number;
   tray_type: string;

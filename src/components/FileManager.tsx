@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import PullToRefresh from 'react-simple-pull-to-refresh';
 
 interface FileEntry {
   name: string;
@@ -238,9 +239,10 @@ export default function FileManager({
 
   return (
     <div className='min-h-screen bg-zinc-950 text-white flex flex-col select-none'>
-      {/* Header */}
+      {/* Header + breadcrumb — sticky together so breadcrumb doesn't scroll away */}
+      <div className='sticky top-0 z-10 shrink-0'>
       <div
-        className='sticky top-0 z-10 flex items-center px-4 pb-3 bg-zinc-900 border-b border-zinc-800 gap-3 shrink-0'
+        className='flex items-center px-4 pb-3 bg-zinc-900 border-b border-zinc-800 gap-3'
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
         {selectMode ? (
           <>
@@ -301,7 +303,7 @@ export default function FileManager({
       </div>
 
       {/* Breadcrumb */}
-      <div className='flex items-center gap-2 px-4 py-2 bg-zinc-900/40 border-b border-zinc-800/40 shrink-0'>
+      <div className='flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800'>
         {path !== '/' && (
           <button onClick={goUp} className='text-zinc-400 hover:text-white transition-colors shrink-0'>
             <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2.5}>
@@ -311,6 +313,8 @@ export default function FileManager({
         )}
         <span className='text-zinc-500 text-xs font-mono truncate'>{path}</span>
       </div>
+
+      </div>{/* end sticky wrapper */}
 
       {/* Toast */}
       {toast && (
@@ -322,7 +326,7 @@ export default function FileManager({
       )}
 
       {/* Content */}
-      <div className='flex-1 overflow-y-auto'>
+      <PullToRefresh onRefresh={() => fetchFiles(path)} className='flex-1 overflow-y-auto'>
         {loading && (
           <div className='flex justify-center py-16'>
             <div className='w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin' />
@@ -419,7 +423,7 @@ export default function FileManager({
               </div>
             );
           })}
-      </div>
+      </PullToRefresh>
 
       {/* Dropdown menu */}
       {openMenuName && menuPos && menuEntry && (

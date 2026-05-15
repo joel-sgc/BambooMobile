@@ -1,1 +1,5 @@
 @import 'tailwindcss';
+
+div.ptr__pull-down--pull-more > div > p {
+  opacity: 0% !important;
+}

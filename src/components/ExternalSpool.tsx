@@ -5,7 +5,7 @@ export default function ExternalSpool({
   divided,
 }: {
   tray: AmsTray;
-  divided: boolean;
+  divided?: boolean;
 }) {
   return (
     <div
@@ -14,6 +14,7 @@ export default function ExternalSpool({
         className='w-10 h-10 rounded-lg border-2 border-zinc-700 shrink-0'
         style={{ backgroundColor: tray.color ? `#${tray.color}` : '#3f3f46' }}
       />
+
       <div className='flex flex-col gap-0.5 min-w-0'>
         <span className='text-zinc-400 text-xs'>External Spool</span>
         <span className='text-white font-semibold text-sm'>

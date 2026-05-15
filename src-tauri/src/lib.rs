@@ -394,16 +394,8 @@ async fn connect_printer(
     // Subscribe and request a full status dump
     let topic = format!("device/{}/report", serial);
     mqtt_client.subscribe(&topic, QoS::AtMostOnce).await.map_err(|e| e.to_string())?;
-
-    let req_topic = format!("device/{}/request", serial);
-    let _ = mqtt_client
-        .publish(
-            &req_topic,
-            QoS::AtLeastOnce,
-            false,
-            serde_json::json!({"pushing": {"sequence_id": "0", "command": "pushall", "version": 1}}).to_string(),
-        )
-        .await;
+    // pushall is sent by the background task once SubAck confirms the subscription,
+    // ensuring SUBSCRIBE is always processed by the broker before PUBLISH.
 
     let status = Arc::new(Mutex::new(PrinterStatus::default()));
     let mut abort_handles: Vec<AbortHandle> = Vec::new();
@@ -411,9 +403,28 @@ async fn connect_printer(
     // MQTT event loop task
     let status_c = status.clone();
     let app_c = app.clone();
+    let mqtt_client_c = mqtt_client.clone();
+    let serial_c = serial.clone();
     let handle = tokio::spawn(async move {
+        let report_topic = format!("device/{}/report", serial_c);
+        let req_topic    = format!("device/{}/request", serial_c);
+        let pushall = serde_json::json!({
+            "pushing": {"sequence_id": "0", "command": "pushall", "version": 1}
+        }).to_string();
+
         loop {
             match eventloop.poll().await {
+                Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                    // Re-subscribe first so the broker always sees SUBSCRIBE before
+                    // PUBLISH — some firmware (X1, H2, P2S) enforces this strictly.
+                    let _ = mqtt_client_c.subscribe(&report_topic, QoS::AtMostOnce).await;
+                }
+                Ok(Event::Incoming(Packet::SubAck(_))) => {
+                    // Subscription confirmed — safe to request a fresh status dump.
+                    let _ = mqtt_client_c
+                        .publish(&req_topic, QoS::AtMostOnce, false, pushall.clone())
+                        .await;
+                }
                 Ok(Event::Incoming(Packet::Publish(msg))) => {
                     let mut st = status_c.lock().await;
                     parse_status(&msg.payload, &mut st);
@@ -490,7 +501,7 @@ async fn set_print_speed(level: u8, state: TauriState<'_, AppState>) -> Result<(
         }
     });
     c.mqtt_client
-        .publish(&topic, QoS::AtLeastOnce, false, payload.to_string())
+        .publish(&topic, QoS::AtMostOnce, false, payload.to_string())
         .await
         .map_err(|e| e.to_string())
 }

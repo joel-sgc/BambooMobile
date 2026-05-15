@@ -256,6 +256,8 @@ export default function JogControls({
 }: {
   onGcode: (g: string) => void;
 }) {
+  const [confirmHome, setConfirmHome] = useState(false);
+
   function move(axis: 'X' | 'Y' | 'Z' | 'E', feedrate: number, mm: number) {
     onGcode(`G91\nG1 ${axis}${mm} F${feedrate}\nG90`);
   }
@@ -266,7 +268,7 @@ export default function JogControls({
         <div className='flex-1 aspect-square max-w-72'>
           <XYWheel
             onMove={(axis, mm) => move(axis, 3000, mm)}
-            onHome={() => onGcode('G28')}
+            onHome={() => setConfirmHome(true)}
           />
         </div>
         <ExtruderControl onMove={(mm) => move('E', 200, mm)} />
@@ -275,6 +277,29 @@ export default function JogControls({
       <p className='text-zinc-600 text-[10px]'>
         ⌂ homes all axes — do this before moving
       </p>
+
+      {confirmHome && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/70'>
+          <div className='bg-zinc-800 border border-zinc-700 rounded-2xl p-6 mx-6 flex flex-col gap-4'>
+            <p className='text-white font-semibold text-base'>Home all axes?</p>
+            <p className='text-zinc-400 text-sm'>
+              The toolhead will move to the home position. Do not use while printing.
+            </p>
+            <div className='flex gap-3'>
+              <button
+                onClick={() => setConfirmHome(false)}
+                className='flex-1 py-2.5 rounded-xl bg-zinc-700 text-zinc-200 font-medium text-sm'>
+                Cancel
+              </button>
+              <button
+                onClick={() => { setConfirmHome(false); onGcode('G28'); }}
+                className='flex-1 py-2.5 rounded-xl bg-red-800 hover:bg-red-700 text-white font-medium text-sm'>
+                Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
