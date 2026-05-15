@@ -319,119 +319,121 @@ export default function TimelapseBrowser({
       )}
 
       <PullToRefresh onRefresh={fetchFiles} className='flex-1 overflow-y-auto'>
-        {loading && (
-          <div className='flex justify-center py-16'>
-            <div className='w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin' />
-          </div>
-        )}
+        <>
+          {loading && (
+            <div className='flex justify-center py-16'>
+              <div className='w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin' />
+            </div>
+          )}
 
-        {!loading && error && (
-          <div className='m-4 bg-red-950/40 border border-red-800/50 rounded-xl px-4 py-3'>
-            <p className='text-red-400 text-sm font-medium'>Error</p>
-            <p className='text-red-500/80 text-xs mt-1 font-mono'>{error}</p>
-          </div>
-        )}
+          {!loading && error && (
+            <div className='m-4 bg-red-950/40 border border-red-800/50 rounded-xl px-4 py-3'>
+              <p className='text-red-400 text-sm font-medium'>Error</p>
+              <p className='text-red-500/80 text-xs mt-1 font-mono'>{error}</p>
+            </div>
+          )}
 
-        {!loading && !error && videos.length === 0 && (
-          <p className='text-zinc-600 text-sm text-center py-16'>
-            No timelapses found
-          </p>
-        )}
+          {!loading && !error && videos.length === 0 && (
+            <p className='text-zinc-600 text-sm text-center py-16'>
+              No timelapses found
+            </p>
+          )}
 
-        {!loading && videos.length > 0 && (
-          <div className='grid grid-cols-2 gap-3 p-4'>
-            {videos.map((vid) => {
-              const thumb = thumbnails[vid.name];
-              const tState = thumbStates[vid.name] ?? 'idle';
-              const isSelected = selected.has(vid.name);
+          {!loading && videos.length > 0 && (
+            <div className='grid grid-cols-2 gap-3 p-4'>
+              {videos.map((vid) => {
+                const thumb = thumbnails[vid.name];
+                const tState = thumbStates[vid.name] ?? 'idle';
+                const isSelected = selected.has(vid.name);
 
-              return (
-                <div
-                  key={vid.name}
-                  className={`bg-zinc-900 rounded-xl overflow-hidden border transition-colors ${
-                    isSelected ? 'border-teal-500' : 'border-zinc-800'
-                  }`}
-                  onPointerDown={() => startLongPress(vid.name)}
-                  onPointerUp={cancelLongPress}
-                  onPointerCancel={cancelLongPress}
-                  onPointerMove={cancelLongPress}
-                  onClick={() => {
-                    if (didLongPressRef.current) {
-                      didLongPressRef.current = false;
-                      return;
-                    }
-                    if (selectMode) toggleSelect(vid.name);
-                    else if (thumb) setPreview(thumb);
-                  }}>
-                  {/* Thumbnail area */}
-                  <div className='aspect-video bg-zinc-800 flex items-center justify-center relative overflow-hidden'>
-                    {tState === 'loaded' && thumb ?
-                      <img
-                        src={thumb}
-                        className='w-full h-full object-cover'
-                        alt=''
-                      />
-                    : tState === 'loading' ?
-                      <div className='w-5 h-5 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin' />
-                    : <svg
-                        className='w-8 h-8 text-zinc-600'
-                        fill='none'
-                        viewBox='0 0 24 24'
-                        stroke='currentColor'
-                        strokeWidth={1.5}>
-                        <path
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          d='M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'
+                return (
+                  <div
+                    key={vid.name}
+                    className={`bg-zinc-900 rounded-xl overflow-hidden border transition-colors ${
+                      isSelected ? 'border-teal-500' : 'border-zinc-800'
+                    }`}
+                    onPointerDown={() => startLongPress(vid.name)}
+                    onPointerUp={cancelLongPress}
+                    onPointerCancel={cancelLongPress}
+                    onPointerMove={cancelLongPress}
+                    onClick={() => {
+                      if (didLongPressRef.current) {
+                        didLongPressRef.current = false;
+                        return;
+                      }
+                      if (selectMode) toggleSelect(vid.name);
+                      else if (thumb) setPreview(thumb);
+                    }}>
+                    {/* Thumbnail area */}
+                    <div className='aspect-video bg-zinc-800 flex items-center justify-center relative overflow-hidden'>
+                      {tState === 'loaded' && thumb ?
+                        <img
+                          src={thumb}
+                          className='w-full h-full object-cover'
+                          alt=''
                         />
-                      </svg>
-                    }
+                      : tState === 'loading' ?
+                        <div className='w-5 h-5 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin' />
+                      : <svg
+                          className='w-8 h-8 text-zinc-600'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={1.5}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'
+                          />
+                        </svg>
+                      }
 
-                    {/* Select overlay */}
-                    {selectMode && (
-                      <div
-                        className={`absolute inset-0 flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-teal-900/60' : 'bg-black/20'
-                        }`}>
+                      {/* Select overlay */}
+                      {selectMode && (
                         <div
-                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ?
-                              'bg-teal-500 border-teal-500'
-                            : 'border-white/70'
+                          className={`absolute inset-0 flex items-center justify-center transition-colors ${
+                            isSelected ? 'bg-teal-900/60' : 'bg-black/20'
                           }`}>
-                          {isSelected && (
-                            <svg
-                              className='w-3.5 h-3.5 text-white'
-                              fill='none'
-                              viewBox='0 0 24 24'
-                              stroke='currentColor'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M5 13l4 4L19 7'
-                              />
-                            </svg>
-                          )}
+                          <div
+                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              isSelected ?
+                                'bg-teal-500 border-teal-500'
+                              : 'border-white/70'
+                            }`}>
+                            {isSelected && (
+                              <svg
+                                className='w-3.5 h-3.5 text-white'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                stroke='currentColor'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  {/* Name + size */}
-                  <div className='px-2.5 py-2'>
-                    <p className='text-white text-xs font-medium truncate'>
-                      {vid.name}
-                    </p>
-                    <p className='text-zinc-600 text-xs mt-0.5'>
-                      {formatSize(vid.size)}
-                    </p>
+                    {/* Name + size */}
+                    <div className='px-2.5 py-2'>
+                      <p className='text-white text-xs font-medium truncate'>
+                        {vid.name}
+                      </p>
+                      <p className='text-zinc-600 text-xs mt-0.5'>
+                        {formatSize(vid.size)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </>
       </PullToRefresh>
 
       {/* Preview modal */}
