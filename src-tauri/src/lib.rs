@@ -68,6 +68,8 @@ pub struct PrinterStatus {
     pub vt_tray: Option<AmsTray>,
     pub chamber_light: bool,
     pub spd_lvl: u8,
+    pub subtask_name: String,
+    pub task_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -133,7 +135,11 @@ fn parse_status(payload: &[u8], status: &mut PrinterStatus) {
     }
     macro_rules! str_field {
         ($dst:expr, $key:expr) => {
-            if let Some(s) = p.get($key).and_then(|v| v.as_str()) { $dst = s.to_owned(); }
+            if let Some(v) = p.get($key) {
+                if let Some(s) = v.as_str() { $dst = s.to_owned(); }
+                else if let Some(n) = v.as_u64() { $dst = n.to_string(); }
+                else if let Some(n) = v.as_i64() { $dst = n.to_string(); }
+            }
         };
     }
 
@@ -147,6 +153,8 @@ fn parse_status(payload: &[u8], status: &mut PrinterStatus) {
     u64_field!(status.total_layer_num,"total_layer_num");
     u64_field!(status.spd_lvl,        "spd_lvl");
     str_field!(status.gcode_state,    "gcode_state");
+    str_field!(status.subtask_name,   "subtask_name");
+    str_field!(status.task_id,        "task_id");
 
     if let Some(n) = p.get("stg_cur").and_then(|v| v.as_u64()) {
         status.stage = stage_name(n);
@@ -523,7 +531,7 @@ async fn send_gcode(gcode: String, state: TauriState<'_, AppState>) -> Result<()
         }
     });
     c.mqtt_client
-        .publish(&topic, QoS::AtLeastOnce, false, payload.to_string())
+        .publish(&topic, QoS::AtMostOnce, false, payload.to_string())
         .await
         .map_err(|e| e.to_string())
 }
@@ -565,6 +573,123 @@ fn ensure_ftp<'a>(
         *slot = Some(FtpsConn { stream: ftps_connect(ip, access_code)? });
     }
     Ok(&mut slot.as_mut().unwrap().stream)
+}
+
+// Tries to RETR a single path. Returns Ok(Some(bytes)) on success,
+// Ok(None) if the file doesn't exist (550), Err on a control-channel failure.
+fn ftp_try_retr(ctrl: &mut FtpsStream, ip: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
+    let data_addr = ftp_pasv(ctrl, ip)?;
+    ftp_writeln(ctrl, &format!("RETR {}", path))?;
+
+    let data_tcp = match std::net::TcpStream::connect(data_addr) {
+        Ok(s) => s,
+        Err(_) => { ftp_read_response(ctrl).ok(); return Ok(None); }
+    };
+    data_tcp.set_read_timeout(Some(std::time::Duration::from_secs(15))).ok();
+    let mut data = match ftps_tls_stream(ip, data_tcp) {
+        Ok(s) => s,
+        Err(_) => { ftp_read_response(ctrl).ok(); return Ok(None); }
+    };
+
+    let (code, _) = ftp_read_response(ctrl)?;
+    if code != 125 && code != 150 {
+        drop(data);
+        return Ok(None);
+    }
+
+    let mut bytes = Vec::new();
+    data.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+    drop(data);
+    ftp_read_response(ctrl).ok();
+    Ok(Some(bytes))
+}
+
+// Downloads the first `max_bytes` of a remote file. If EOF is reached before
+// the limit the 226 response is consumed cleanly; if we hit the limit first we
+// force-close the data connection (ensure_ftp will reconnect the control channel
+// on the next call via its NOOP health-check).
+fn ftp_read_partial(ctrl: &mut FtpsStream, ip: &str, path: &str, max_bytes: usize) -> Result<Vec<u8>, String> {
+    let data_addr = ftp_pasv(ctrl, ip)?;
+    ftp_writeln(ctrl, &format!("RETR {}", path))?;
+
+    let data_tcp = std::net::TcpStream::connect(data_addr)
+        .map_err(|e| format!("Data connect: {}", e))?;
+    data_tcp.set_read_timeout(Some(std::time::Duration::from_secs(30))).ok();
+    let mut data = ftps_tls_stream(ip, data_tcp)?;
+
+    let (code, msg) = ftp_read_response(ctrl)?;
+    if code != 125 && code != 150 {
+        return Err(format!("RETR: {} {}", code, msg));
+    }
+
+    let mut buf = Vec::with_capacity(max_bytes.min(65_536));
+    let mut chunk = [0u8; 8_192];
+    loop {
+        let n = data.read(&mut chunk).map_err(|e| e.to_string())?;
+        if n == 0 {
+            drop(data);
+            ftp_read_response(ctrl).ok(); // 226 — clean EOF
+            return Ok(buf);
+        }
+        let space = max_bytes - buf.len();
+        buf.extend_from_slice(&chunk[..n.min(space)]);
+        if buf.len() >= max_bytes {
+            drop(data); // force-close; control conn cleaned up by next ensure_ftp NOOP
+            return Ok(buf);
+        }
+    }
+}
+
+// Parses the largest embedded thumbnail from a gcode header.
+// Handles both `; thumbnail begin WxH SIZE` and `; thumbnail_QOI begin WxH SIZE`.
+// Returns raw image bytes (PNG).
+fn parse_gcode_thumbnail(data: &[u8]) -> Option<Vec<u8>> {
+    let text = std::str::from_utf8(data).unwrap_or("");
+
+    let mut best_size = 0usize;
+    let mut best_bytes: Option<Vec<u8>> = None;
+    let mut in_thumb = false;
+    let mut b64 = String::new();
+    let mut current_size = 0usize;
+
+    for line in text.lines() {
+        let line = line.trim();
+        if in_thumb {
+            if line.starts_with("; thumbnail") && line.contains("end") {
+                in_thumb = false;
+                if !b64.is_empty() {
+                    if let Ok(decoded) = STANDARD.decode(&b64) {
+                        if current_size > best_size || best_bytes.is_none() {
+                            best_size = current_size;
+                            best_bytes = Some(decoded);
+                        }
+                    }
+                }
+                b64.clear();
+                current_size = 0;
+            } else if let Some(part) = line.strip_prefix("; ") {
+                b64.push_str(part.trim());
+            }
+        } else if let Some(rest) = line
+            .strip_prefix("; thumbnail")
+            .and_then(|s| {
+                s.strip_prefix(" begin ")
+                 .or_else(|| s.strip_prefix("_QOI begin "))
+                 .or_else(|| s.strip_prefix("_PNG begin "))
+            })
+        {
+            // rest = "WxH SIZE"
+            current_size = rest.split_whitespace().nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+            in_thumb = true;
+            b64.clear();
+        }
+    }
+
+    best_bytes
+}
+
+fn detect_mime(bytes: &[u8]) -> &'static str {
+    if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) { "image/png" } else { "image/jpeg" }
 }
 
 fn ftps_tls_stream(ip: &str, tcp: std::net::TcpStream) -> Result<FtpsStream, String> {
@@ -662,9 +787,25 @@ fn parse_list_entry(line: &str) -> Option<FileEntry> {
     if parts.len() < 9 { return None; }
     let is_dir = parts[0].starts_with('d');
     let size: u64 = parts[4].parse().ok()?;
-    // parts[5]=month  parts[6]=day  parts[7]=HH:MM or YYYY
-    let year: i64 = if parts[7].contains(':') { 2025 } else { parts[7].parse().unwrap_or(2025) };
-    let modified = year * 10000 + month_num(parts[5]) * 100 + parts[6].parse::<i64>().unwrap_or(0);
+    let month = month_num(parts[5]);
+    let day: i64 = parts[6].parse().unwrap_or(0);
+    // parts[7] is either "HH:MM" (recent file, year omitted) or "YYYY" (older file)
+    let (year, hhmm): (i64, i64) = if parts[7].contains(':') {
+        let cur_year = 1970
+            + (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+                / 31_557_600) as i64;
+        let mut p = parts[7].splitn(2, ':');
+        let h: i64 = p.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let m: i64 = p.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        (cur_year, h * 100 + m)
+    } else {
+        (parts[7].parse().unwrap_or(2026), 0)
+    };
+    // Encode as YYYYMMDDHHmm so the value sorts newest-highest
+    let modified = year * 100_000_000 + month * 1_000_000 + day * 10_000 + hhmm;
     let name = parts[8..].join(" ");
     if name == "." || name == ".." || name.is_empty() { return None; }
     Some(FileEntry { name, size, is_dir, modified })
@@ -766,6 +907,153 @@ async fn fetch_thumbnail(path: String, app: AppHandle, state: TauriState<'_, App
         std::fs::write(&cache_path, &bytes).ok();
 
         Ok(STANDARD.encode(&bytes))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn fetch_print_preview(
+    subtask_name: String,
+    task_id: String,
+    app: AppHandle,
+    state: TauriState<'_, AppState>,
+) -> Result<String, String> {
+    if subtask_name.is_empty() {
+        return Err("No active job".to_string());
+    }
+
+    // Cache is stored without extension; MIME is detected from magic bytes on read-back.
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    let cache_path = cache_dir.join("previews").join(&subtask_name);
+    if cache_path.exists() {
+        let bytes = std::fs::read(&cache_path).map_err(|e| e.to_string())?;
+        return Ok(format!("data:{};base64,{}", detect_mime(&bytes), STANDARD.encode(&bytes)));
+    }
+
+    let (ip, access_code) = {
+        let conn = state.connection.lock().await;
+        let c = conn.as_ref().ok_or("Not connected")?;
+        (c.ip.clone(), c.access_code.clone())
+    };
+    let ftp_arc = Arc::clone(&state.ftp);
+
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let mut diag: Vec<String> = Vec::new();
+        let mut slot = ftp_arc.lock().unwrap();
+
+        // ── 1. Try /image/ — list the directory and fetch the most recently modified file.
+        //       OrcaSlicer uploads the preview image here when sending a print via LAN,
+        //       so the newest entry corresponds to the active job.
+        //       If task_id is a non-zero cloud ID, also try exact match first.
+        {
+            // Exact match by task_id (cloud prints only; LAN prints have task_id = "0")
+            if !task_id.is_empty() && task_id != "0" {
+                let ctrl = ensure_ftp(&mut slot, &ip, &access_code)?;
+                for ext in &["png", "jpg", "jpeg"] {
+                    let path = format!("/image/{}.{}", task_id, ext);
+                    match ftp_try_retr(ctrl, &ip, &path) {
+                        Ok(Some(bytes)) => {
+                            if let Some(p) = cache_path.parent() { std::fs::create_dir_all(p).ok(); }
+                            std::fs::write(&cache_path, &bytes).ok();
+                            return Ok(format!("data:{};base64,{}", detect_mime(&bytes), STANDARD.encode(&bytes)));
+                        }
+                        Ok(None) => diag.push(format!("{path}: 550")),
+                        Err(e)   => diag.push(format!("{path}: err({e})")),
+                    }
+                }
+            }
+
+            // List /image/ and pick the newest file
+            let newest: Option<String> = {
+                let ctrl = ensure_ftp(&mut slot, &ip, &access_code)?;
+                let data_addr = ftp_pasv(ctrl, &ip)?;
+                ftp_writeln(ctrl, "LIST /image/")?;
+                let data_tcp = std::net::TcpStream::connect(data_addr)
+                    .map_err(|e| format!("image-list data: {}", e))?;
+                data_tcp.set_read_timeout(Some(std::time::Duration::from_secs(15))).ok();
+                let mut data = ftps_tls_stream(&ip, data_tcp)?;
+                let (code, _) = ftp_read_response(ctrl)?;
+                if code == 125 || code == 150 {
+                    let mut listing = String::new();
+                    data.read_to_string(&mut listing).map_err(|e| e.to_string())?;
+                    drop(data);
+                    ftp_read_response(ctrl).ok();
+                    let mut entries: Vec<FileEntry> = listing.lines()
+                        .filter_map(parse_list_entry)
+                        .filter(|e| !e.is_dir)
+                        .collect();
+                    entries.sort_by(|a, b| b.modified.cmp(&a.modified));
+                    entries.into_iter().next().map(|e| e.name)
+                } else {
+                    drop(data);
+                    diag.push("/image/: LIST failed".to_string());
+                    None
+                }
+            };
+
+            if let Some(ref img_name) = newest {
+                let path = format!("/image/{}", img_name);
+                let ctrl = ensure_ftp(&mut slot, &ip, &access_code)?;
+                match ftp_try_retr(ctrl, &ip, &path) {
+                    Ok(Some(bytes)) => {
+                        if let Some(p) = cache_path.parent() { std::fs::create_dir_all(p).ok(); }
+                        std::fs::write(&cache_path, &bytes).ok();
+                        return Ok(format!("data:{};base64,{}", detect_mime(&bytes), STANDARD.encode(&bytes)));
+                    }
+                    Ok(None) => diag.push(format!("{path}: 550")),
+                    Err(e)   => diag.push(format!("{path}: err({e})")),
+                }
+            }
+        }
+
+        // ── 2. Try pre-rendered JPEG/PNG files in /cache/ ────────────────────
+        {
+            let ctrl = ensure_ftp(&mut slot, &ip, &access_code)?;
+            for path in &[
+                format!("/cache/{}.jpg",  subtask_name),
+                format!("/cache/{}.jpeg", subtask_name),
+                format!("/cache/{}.png",  subtask_name),
+            ] {
+                match ftp_try_retr(ctrl, &ip, path) {
+                    Ok(Some(bytes)) => {
+                        if let Some(p) = cache_path.parent() { std::fs::create_dir_all(p).ok(); }
+                        std::fs::write(&cache_path, &bytes).ok();
+                        return Ok(format!("data:{};base64,{}", detect_mime(&bytes), STANDARD.encode(&bytes)));
+                    }
+                    Ok(None) => diag.push(format!("{path}: 550")),
+                    Err(e)   => diag.push(format!("{path}: err({e})")),
+                }
+            }
+        }
+
+        // ── 3. Extract thumbnail from the gcode file header ───────────────────
+        {
+            let ctrl = ensure_ftp(&mut slot, &ip, &access_code)?;
+            let mut gcode_candidates = vec![format!("/cache/{}.gcode", subtask_name)];
+            if let Some(idx) = subtask_name.rfind("_plate_") {
+                let suffix = &subtask_name[idx..];
+                gcode_candidates.push(format!("/cache/{}{}.gcode", subtask_name, suffix));
+            }
+            for gcode_path in &gcode_candidates {
+                match ftp_read_partial(ctrl, &ip, gcode_path, 2 * 1024 * 1024) {
+                    Ok(header) => {
+                        let head_str = String::from_utf8_lossy(&header[..header.len().min(300)]).to_string();
+                        diag.push(format!("{gcode_path}: {len}b, head={head_str:?}", len = header.len()));
+                        if let Some(bytes) = parse_gcode_thumbnail(&header) {
+                            if let Some(p) = cache_path.parent() { std::fs::create_dir_all(p).ok(); }
+                            std::fs::write(&cache_path, &bytes).ok();
+                            return Ok(format!("data:{};base64,{}", detect_mime(&bytes), STANDARD.encode(&bytes)));
+                        } else {
+                            diag.push("no thumbnail in header".to_string());
+                        }
+                    }
+                    Err(e) => diag.push(format!("{gcode_path}: err({e})")),
+                }
+            }
+        }
+
+        Err(diag.join(" | "))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -926,6 +1214,7 @@ pub fn run() {
             delete_file,
             delete_entry,
             fetch_thumbnail,
+            fetch_print_preview,
             download_file,
         ])
         .run(tauri::generate_context!())

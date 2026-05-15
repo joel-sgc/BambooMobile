@@ -38,8 +38,15 @@ function MenuIcon() {
 
 type MenuPos = { top: number; right: number };
 
-export default function FileManager({ onMenuOpen }: { onMenuOpen: () => void }) {
-  const [path, setPath] = useState('/');
+export default function FileManager({
+  onMenuOpen,
+  path,
+  onPathChange,
+}: {
+  onMenuOpen: () => void;
+  path: string;
+  onPathChange: (p: string) => void;
+}) {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -211,16 +218,15 @@ export default function FileManager({ onMenuOpen }: { onMenuOpen: () => void }) 
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
-  function navigate(entry: FileEntry) {
+  function enterDir(entry: FileEntry) {
     if (!entry.is_dir) return;
-    setPath(path.endsWith('/') ? `${path}${entry.name}/` : `${path}/${entry.name}/`);
+    onPathChange(path.endsWith('/') ? `${path}${entry.name}/` : `${path}/${entry.name}/`);
   }
 
   function goUp() {
     if (path === '/') return;
     const trimmed = path.endsWith('/') ? path.slice(0, -1) : path;
-    const parent = trimmed.substring(0, trimmed.lastIndexOf('/') + 1) || '/';
-    setPath(parent);
+    onPathChange(trimmed.substring(0, trimmed.lastIndexOf('/') + 1) || '/');
   }
 
   const hasFileSelected = [...selected].some((name) => {
@@ -390,7 +396,7 @@ export default function FileManager({ onMenuOpen }: { onMenuOpen: () => void }) 
                   onClick={() => {
                     if (didLongPressRef.current) { didLongPressRef.current = false; return; }
                     if (selectMode) toggleSelect(entry.name);
-                    else navigate(entry);
+                    else enterDir(entry);
                   }}>
                   <p className='text-white text-sm truncate'>{entry.name}</p>
                   {!entry.is_dir && (

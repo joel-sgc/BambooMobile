@@ -134,7 +134,7 @@ function ExtruderControl({ onMove }: { onMove: (mm: number) => void }) {
     'flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 active:bg-teal-800 text-zinc-200 transition-colors';
 
   return (
-    <div className='grid grid-rows-[auto_auto_1fr_auto_auto] items-center justify-between h-full gap-2'>
+    <div className='grid grid-rows-[auto_auto_1fr_auto_auto] items-center justify-center h-full gap-2'>
       <button className={btn} onClick={() => onMove(10)}>
         <svg
           className='w-4 h-4'
@@ -197,7 +197,7 @@ function BedControl({ onMove }: { onMove: (mm: number) => void }) {
     'flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 active:bg-teal-800 text-zinc-200 transition-colors';
 
   return (
-    <div className='grid grid-rows-[auto_auto_1fr_auto_auto] items-center justify-between gap-2 w-fit h-full'>
+    <div className='grid grid-rows-[auto_auto_1fr_auto_auto] justify-center items-center gap-2 h-full'>
       <button className={btn} onClick={() => onMove(-10)}>
         <svg
           className='w-4 h-4'
@@ -220,7 +220,7 @@ function BedControl({ onMove }: { onMove: (mm: number) => void }) {
           <path d='M5 15l7-7 7 7' />
         </svg>
       </button>
-      <span className='text-zinc-400 text-xs font-medium text-center shrink-0 px-1 my-auto'>
+      <span className='text-zinc-400 text-xs font-medium text-center shrink-0 px-1'>
         Bed
       </span>
       <button className={btn} onClick={() => onMove(1)}>
@@ -262,8 +262,8 @@ export default function JogControls({
 
   return (
     <div className='flex flex-col gap-3'>
-      <div className='grid grid-cols-[1fr_auto_auto] gap-3 items-center'>
-        <div className='flex-1 aspect-square'>
+      <div className='grid grid-cols-[3fr_1fr_1fr] gap-3 h-full'>
+        <div className='flex-1 aspect-square max-w-72'>
           <XYWheel
             onMove={(axis, mm) => move(axis, 3000, mm)}
             onHome={() => onGcode('G28')}

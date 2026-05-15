@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { load } from '@tauri-apps/plugin-store';
 
@@ -21,6 +21,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [filePath, setFilePath] = useState('/');
+  const backActionRef = useRef<() => boolean>(() => false);
 
   async function connect(
     targetIp = ip,
@@ -77,9 +79,31 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function navigate(p: Page) {
+    if (p === 'files') setFilePath('/');
     setPage(p);
     setSidebarOpen(false);
   }
+
+  // Keep backActionRef current without re-registering the event listener
+  backActionRef.current = () => {
+    if (phase !== 'connected') return false;
+    if (sidebarOpen) { setSidebarOpen(false); return true; }
+    if (page === 'files' && filePath !== '/') {
+      const trimmed = filePath.endsWith('/') ? filePath.slice(0, -1) : filePath;
+      setFilePath(trimmed.substring(0, trimmed.lastIndexOf('/') + 1) || '/');
+      return true;
+    }
+    if (page !== 'dashboard') { navigate('dashboard'); return true; }
+    return false; // on dashboard — let Android exit the app
+  };
+
+  useEffect(() => {
+    const arm = () => window.history.pushState(null, '', window.location.href);
+    arm();
+    const handle = () => { if (backActionRef.current()) arm(); };
+    window.addEventListener('popstate', handle);
+    return () => window.removeEventListener('popstate', handle);
+  }, []);
 
   if (phase === 'connecting') return <ConnectingScreen ip={ip} />;
 
@@ -114,7 +138,11 @@ export default function App() {
       )}
 
       {page === 'files' && (
-        <FileManager onMenuOpen={() => setSidebarOpen(true)} />
+        <FileManager
+          onMenuOpen={() => setSidebarOpen(true)}
+          path={filePath}
+          onPathChange={setFilePath}
+        />
       )}
 
       {page === 'timelapses' && (

@@ -1,19 +1,22 @@
 export default function TempGauge({
-  label,
+  icon,
   actual,
-  target,
 }: {
-  label: string;
+  icon: React.ReactNode;
   actual: number;
-  target?: number;
 }) {
   return (
-    <div className='bg-zinc-800 rounded-xl p-4 flex flex-col gap-1'>
-      <span className='text-zinc-400 text-xs uppercase tracking-wider'>{label}</span>
-      <span className='text-white text-2xl font-bold tabular-nums'>{actual.toFixed(1)}°</span>
-      {target != null && target > 0 && (
-        <span className='text-zinc-500 text-xs'>target {target.toFixed(0)}°</span>
-      )}
+    <div className='flex flex-col items-center justify-center gap-4'>
+      <span className='text-zinc-500 text-xs uppercase tracking-wider'>
+        {icon}
+      </span>
+
+      <div>
+        <span className='text-white text-xl font-bold tabular-nums'>
+          {actual.toFixed(1)}
+        </span>
+        <span className='text-zinc-400'>°C</span>
+      </div>
     </div>
   );
 }
